@@ -1,5 +1,5 @@
 /* -LICENSE-START-
-** Copyright (c) 2009 Blackmagic Design
+** Copyright (c) 2011 Blackmagic Design
 **
 ** Permission is hereby granted, free of charge, to any person or organization
 ** obtaining a copy of the software and accompanying documentation covered by
@@ -26,7 +26,7 @@
 */
 /* DeckLinkAPIDispatch.cpp */
 
-#include "DeckLinkAPI.h"
+#include "DeckLinkAPI_v8_0.h"
 #include <pthread.h>
 
 #if BLACKMAGIC_DECKLINK_API_MAGIC != 1
@@ -35,13 +35,11 @@
 
 #define kDeckLinkAPI_BundlePath "/Library/Frameworks/DeckLinkAPI.framework"
 
-
-typedef IDeckLinkIterator* (*CreateIteratorFunc)(void);
+typedef IDeckLinkIterator_v8_0* (*CreateIteratorFunc)(void);
 typedef IDeckLinkAPIInformation* (*CreateAPIInformationFunc)(void);
 typedef IDeckLinkGLScreenPreviewHelper* (*CreateOpenGLScreenPreviewHelperFunc)(void);
 typedef IDeckLinkCocoaScreenPreviewCallback* (*CreateCocoaScreenPreviewFunc)(void*);
 typedef IDeckLinkVideoConversion* (*CreateVideoConversionInstanceFunc)(void);
-typedef IDeckLinkDiscovery* (*CreateDeckLinkDiscoveryInstanceFunc)(void);
 
 static pthread_once_t						gDeckLinkOnceControl		= PTHREAD_ONCE_INIT;
 static CFBundleRef							gDeckLinkAPIBundleRef		= NULL;
@@ -50,10 +48,9 @@ static CreateAPIInformationFunc				gCreateAPIInformationFunc	= NULL;
 static CreateOpenGLScreenPreviewHelperFunc	gCreateOpenGLPreviewFunc	= NULL;
 static CreateCocoaScreenPreviewFunc			gCreateCocoaPreviewFunc		= NULL;
 static CreateVideoConversionInstanceFunc	gCreateVideoConversionFunc	= NULL;
-static CreateDeckLinkDiscoveryInstanceFunc  gCreateDeckLinkDiscoveryFunc= NULL;
 
 
-void	InitDeckLinkAPI (void)
+static void	InitDeckLinkAPI (void)
 {
 	CFURLRef		bundleURL;
 
@@ -63,12 +60,11 @@ void	InitDeckLinkAPI (void)
 		gDeckLinkAPIBundleRef = CFBundleCreate(kCFAllocatorDefault, bundleURL);
 		if (gDeckLinkAPIBundleRef != NULL)
 		{
-			gCreateIteratorFunc = (CreateIteratorFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateDeckLinkIteratorInstance_0002"));
+			gCreateIteratorFunc = (CreateIteratorFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateDeckLinkIteratorInstance_0001"));
 			gCreateAPIInformationFunc = (CreateAPIInformationFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateDeckLinkAPIInformationInstance_0001"));
 			gCreateOpenGLPreviewFunc = (CreateOpenGLScreenPreviewHelperFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateOpenGLScreenPreviewHelper_0001"));
 			gCreateCocoaPreviewFunc = (CreateCocoaScreenPreviewFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateCocoaScreenPreview_0001"));
 			gCreateVideoConversionFunc = (CreateVideoConversionInstanceFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateVideoConversionInstance_0001"));
-            gCreateDeckLinkDiscoveryFunc = (CreateDeckLinkDiscoveryInstanceFunc)CFBundleGetFunctionPointerForName(gDeckLinkAPIBundleRef, CFSTR("CreateDeckLinkDiscoveryInstance_0001"));
 		}
 		CFRelease(bundleURL);
 	}
@@ -83,7 +79,7 @@ bool		IsDeckLinkAPIPresent (void)
 	return false;
 }
 
-IDeckLinkIterator*		CreateDeckLinkIteratorInstance (void)
+IDeckLinkIterator_v8_0*		CreateDeckLinkIteratorInstance (void)
 {
 	pthread_once(&gDeckLinkOnceControl, InitDeckLinkAPI);
 	
@@ -133,61 +129,3 @@ IDeckLinkVideoConversion* CreateVideoConversionInstance (void)
 	return gCreateVideoConversionFunc();
 }
 
-IDeckLinkDiscovery* CreateDeckLinkDiscoveryInstance (void)
-{
-	pthread_once(&gDeckLinkOnceControl, InitDeckLinkAPI);
-	
-	if (gCreateDeckLinkDiscoveryFunc == NULL)
-		return NULL;
-	
-	return gCreateDeckLinkDiscoveryFunc();
-}
-
-
-#define kBMDStreamingAPI_BundlePath "/Library/Application Support/Blackmagic Design/Streaming/BMDStreamingAPI.bundle"
-
-typedef IBMDStreamingDiscovery* (*CreateDiscoveryFunc)(void);
-typedef IBMDStreamingH264NALParser* (*CreateNALParserFunc)(void);
-
-static pthread_once_t      gBMDStreamingOnceControl  = PTHREAD_ONCE_INIT;
-static CFBundleRef         gBMDStreamingAPIBundleRef = NULL;
-static CreateDiscoveryFunc gCreateDiscoveryFunc      = NULL;
-static CreateNALParserFunc gCreateNALParserFunc      = NULL;
-
-void InitBMDStreamingAPI(void)
-{
-	CFURLRef bundleURL;
-
-	bundleURL = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, CFSTR(kBMDStreamingAPI_BundlePath), kCFURLPOSIXPathStyle, true);
-	if (bundleURL != NULL)
-	{
-		gBMDStreamingAPIBundleRef = CFBundleCreate(kCFAllocatorDefault, bundleURL);
-		if (gBMDStreamingAPIBundleRef != NULL)
-		{
-			gCreateDiscoveryFunc = (CreateDiscoveryFunc)CFBundleGetFunctionPointerForName(gBMDStreamingAPIBundleRef, CFSTR("CreateBMDStreamingDiscoveryInstance_0001"));
-			gCreateNALParserFunc = (CreateNALParserFunc)CFBundleGetFunctionPointerForName(gBMDStreamingAPIBundleRef, CFSTR("CreateBMDStreamingH264NALParser_0001"));
-		}
-
-		CFRelease(bundleURL);
-	}
-}
-
-IBMDStreamingDiscovery* CreateBMDStreamingDiscoveryInstance()
-{
-	pthread_once(&gBMDStreamingOnceControl, InitBMDStreamingAPI);
-
-	if (gCreateDiscoveryFunc == NULL)
-		return NULL;
-
-	return gCreateDiscoveryFunc();
-}
-
-IBMDStreamingH264NALParser* CreateBMDStreamingH264NALParser()
-{
-	pthread_once(&gBMDStreamingOnceControl, InitBMDStreamingAPI);
-
-	if (gCreateNALParserFunc == NULL)
-		return NULL;
-
-	return gCreateNALParserFunc();
-}
